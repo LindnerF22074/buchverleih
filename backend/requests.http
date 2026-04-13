@@ -1,0 +1,329 @@
+@baseUrl = http://localhost:3300
+
+### ═══════════════════════════════════════════
+### BOOKS
+### ═══════════════════════════════════════════
+
+### Get all books
+GET {{baseUrl}}/api/books
+
+###
+
+### Get books filtered by genre
+GET {{baseUrl}}/api/books?genre=Fantasy
+
+###
+
+### Get books filtered by author
+GET {{baseUrl}}/api/books?author=Tolkien
+
+###
+
+### Get a single book
+GET {{baseUrl}}/api/books/1
+
+###
+
+### Create a book
+POST {{baseUrl}}/api/books
+Content-Type: application/json
+
+{
+  "title": "The Hobbit",
+  "isbn": "9780261102217",
+  "genre_id": 1
+}
+
+###
+
+### Update a book
+PUT {{baseUrl}}/api/books/1
+Content-Type: application/json
+
+{
+  "title": "The Hobbit (Revised Edition)"
+}
+
+###
+
+### Delete a book
+DELETE {{baseUrl}}/api/books/1
+
+
+### ═══════════════════════════════════════════
+### BOOK COPIES
+### ═══════════════════════════════════════════
+
+### Get all book copies
+GET {{baseUrl}}/api/book-copies
+
+###
+
+### Get a single book copy
+GET {{baseUrl}}/api/book-copies/1
+
+###
+
+### Create a book copy
+POST {{baseUrl}}/api/book-copies
+Content-Type: application/json
+
+{
+  "book_id": 1,
+  "max_rental_days": 30,
+  "rent_per_day": 0.15,
+  "book_condition_id": 1,
+  "condition_description": "Minor wear on cover"
+}
+
+###
+
+### Delete a book copy
+DELETE {{baseUrl}}/api/book-copies/1
+
+
+### ═══════════════════════════════════════════
+### GENRES
+### ═══════════════════════════════════════════
+
+### Get all genres
+GET {{baseUrl}}/api/genres
+
+###
+
+### Create a genre
+POST {{baseUrl}}/api/genres
+Content-Type: application/json
+
+{
+  "genre_name": "Fantasy"
+}
+
+###
+
+### Delete a genre
+DELETE {{baseUrl}}/api/genres/1
+
+
+### ═══════════════════════════════════════════
+### AUTHORS
+### ═══════════════════════════════════════════
+
+### Get all authors
+GET {{baseUrl}}/api/authors
+
+###
+
+### Create an author
+POST {{baseUrl}}/api/authors
+Content-Type: application/json
+
+{
+  "author_name": "J.R.R. Tolkien"
+}
+
+###
+
+### Delete an author
+DELETE {{baseUrl}}/api/authors/1
+
+
+### ═══════════════════════════════════════════
+### CUSTOMERS
+### ═══════════════════════════════════════════
+
+### Get all customers
+GET {{baseUrl}}/api/customers
+
+###
+
+### Get a single customer
+GET {{baseUrl}}/api/customers/1
+
+###
+
+### Create a customer
+POST {{baseUrl}}/api/customers
+Content-Type: application/json
+
+{
+  "customer_name": "Max Mustermann",
+  "email": "max.mustermann@example.com",
+  "phone": "+43 664 1234567",
+  "address_id": 1
+}
+
+###
+
+### Update a customer
+PUT {{baseUrl}}/api/customers/1
+Content-Type: application/json
+
+{
+  "email": "newemail@example.com"
+}
+
+###
+
+### Delete a customer
+DELETE {{baseUrl}}/api/customers/1
+
+
+### ═══════════════════════════════════════════
+### EMPLOYEES
+### ═══════════════════════════════════════════
+
+### Get all employees
+GET {{baseUrl}}/api/employees
+
+###
+
+### Get a single employee
+GET {{baseUrl}}/api/employees/1
+
+###
+
+### Create an employee
+POST {{baseUrl}}/api/employees
+Content-Type: application/json
+
+{
+  "employee_name": "Anna Bauer",
+  "employee_username": "abauer",
+  "employee_password": "securepassword123"
+}
+
+###
+
+### Delete an employee
+DELETE {{baseUrl}}/api/employees/1
+
+
+### ═══════════════════════════════════════════
+### RENTALS
+### ═══════════════════════════════════════════
+
+### Get all rentals
+GET {{baseUrl}}/api/rentals
+
+###
+
+### Get a single rental
+GET {{baseUrl}}/api/rentals/1
+
+###
+
+### Create a rental
+POST {{baseUrl}}/api/rentals
+Content-Type: application/json
+
+{
+  "rental_date": "2026-04-13",
+  "required_date": "2026-05-13",
+  "customer_id": 1,
+  "employee_id": 1,
+  "book_copy_id": 1
+}
+
+###
+
+### Delete a rental
+DELETE {{baseUrl}}/api/rentals/1
+
+
+### ═══════════════════════════════════════════
+### BOOK RETURNS
+### ═══════════════════════════════════════════
+
+### Get all book returns
+GET {{baseUrl}}/api/book-returns
+
+###
+
+### Create a book return
+POST {{baseUrl}}/api/book-returns
+Content-Type: application/json
+
+{
+  "return_date": "2026-05-10",
+  "rental_id": 1,
+  "employee_id": 1,
+  "rent_amount": 12.75
+}
+
+
+### ═══════════════════════════════════════════
+### ADMONITIONS
+### ═══════════════════════════════════════════
+
+### Get all admonitions
+GET {{baseUrl}}/api/admonitions
+
+###
+
+### Create an admonition
+POST {{baseUrl}}/api/admonitions
+Content-Type: application/json
+
+{
+  "admonition_date": "2026-05-14",
+  "rental_id": 1,
+  "admonition_type_id": 1
+}
+
+
+### ═══════════════════════════════════════════
+### ADMONITION TYPES
+### ═══════════════════════════════════════════
+
+### Get all admonition types
+GET {{baseUrl}}/api/admonition-types
+
+###
+
+### Create an admonition type
+POST {{baseUrl}}/api/admonition-types
+Content-Type: application/json
+
+{
+  "admonition_type_name": "First Warning",
+  "amount": 5.00
+}
+
+
+### ═══════════════════════════════════════════
+### ADDRESSES
+### ═══════════════════════════════════════════
+
+### Get all addresses
+GET {{baseUrl}}/api/addresses
+
+###
+
+### Create an address
+POST {{baseUrl}}/api/addresses
+Content-Type: application/json
+
+{
+  "zipcode": "1010",
+  "city": "Wien",
+  "street": "Hauptstraße 1"
+}
+
+
+### ═══════════════════════════════════════════
+### BOOK CONDITIONS
+### ═══════════════════════════════════════════
+
+### Get all book conditions
+GET {{baseUrl}}/api/book-conditions
+
+###
+
+### Create a book condition
+POST {{baseUrl}}/api/book-conditions
+Content-Type: application/json
+
+{
+  "book_condition_name": "Good"
+}
