@@ -59,7 +59,9 @@
 	async function loadAll() {
 		loading = true;
 		try {
-			[customers, addresses] = await Promise.all([api.get('/customers'), api.get('/addresses')]);
+			const [cRaw, aRaw] = await Promise.all([api.get('/customers'), api.get('/addresses')]);
+			customers = normalizeCustomers(cRaw);
+			addresses = Array.isArray(aRaw) ? aRaw : [];
 		} finally {
 			loading = false;
 		}
@@ -112,14 +114,14 @@
 			});
 			addToast('Kunde hinzugefügt', 'success');
 			showAdd = false;
-			customers = await api.get('/customers');
+			customers = normalizeCustomers(await api.get('/customers'));
 		} catch { /* handled */ }
 	}
 
 	// ── Edit Customer ─────────────────────────────────
 	/** @param {any} c */
 	function openEdit(c) {
-		editTarget = c;
+		editTarget = normalizeCustomer(c);
 		form = {
 			customer_name: c.customer_name ?? '',
 			email: c.email ?? '',
@@ -136,8 +138,11 @@
 	async function updateCustomer() {
 		if (!form.customer_name.trim()) return addToast('Name ist erforderlich', 'warning');
 		try {
+			const id = editTarget?.id ?? editTarget?.customer_id ?? editTarget?.customerId;
+			if (!id) return addToast('Kunden-ID fehlt', 'error');
+
 			const address_id = await resolveAddressId();
-			await api.put('/customers/' + editTarget.id, {
+			await api.put('/customers/' + id, {
 				customer_name: form.customer_name.trim(),
 				email: form.email.trim() || undefined,
 				phone: form.phone.trim() || undefined,
@@ -145,7 +150,7 @@
 			});
 			addToast('Kunde aktualisiert', 'success');
 			showEdit = false;
-			customers = await api.get('/customers');
+			customers = normalizeCustomers(await api.get('/customers'));
 		} catch { /* handled */ }
 	}
 
@@ -154,13 +159,27 @@
 	async function deleteCustomer(c) {
 		if (!confirm(`Kunden "${c.customer_name}" löschen?`)) return;
 		try {
-			await api.del('/customers/' + c.id);
+			const id = c?.id ?? c?.customer_id ?? c?.customerId;
+			if (!id) return addToast('Kunden-ID fehlt', 'error');
+
+			await api.del('/customers/' + id);
 			addToast('Kunde gelöscht', 'success');
-			customers = await api.get('/customers');
+			customers = normalizeCustomers(await api.get('/customers'));
 		} catch { /* handled */ }
 	}
 
 	// ── Helpers ───────────────────────────────────────
+	/** @param {any} c */
+	function normalizeCustomer(c) {
+		const id = c?.id ?? c?.customer_id ?? c?.customerId;
+		return id == null ? c : { ...c, id };
+	}
+
+	/** @param {any} list */
+	function normalizeCustomers(list) {
+		return Array.isArray(list) ? list.map(normalizeCustomer) : [];
+	}
+
 	/** @param {any} addrId */
 	function addrLabel(addrId) {
 		const a = addresses.find((a) => String(a.id) === String(addrId));
@@ -205,7 +224,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each filtered as c (c.id)}
+					{#each filtered as c, i (c.id ?? i)}
 						<tr>
 							<td><strong>{c.customer_name}</strong></td>
 							<td>{c.email ?? '—'}</td>

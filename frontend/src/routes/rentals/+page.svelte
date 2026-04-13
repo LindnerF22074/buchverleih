@@ -302,7 +302,7 @@
 		<select id="r-customer" bind:value={newForm.customer_id}>
 			<option value="">— Kunde wählen —</option>
 			{#each customers as c}
-				<option value={c.id}>{c.customer_name}</option>
+				<option value={c.customer_id ?? c.id}>{c.customer_name}</option>
 			{/each}
 		</select>
 	</div>
