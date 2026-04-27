@@ -4,7 +4,9 @@
       "Bash(npm install:*)",
       "Bash(node index.js)",
       "Bash(curl -s http://localhost:3300/api/genres)",
-      "Bash(kill %1)"
+      "Bash(kill %1)",
+      "Bash(node reset-db.mjs)",
+      "Bash(node --check index.js)"
     ]
   }
 }

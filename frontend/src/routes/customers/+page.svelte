@@ -4,35 +4,27 @@
 	import { addToast } from '$lib/toast.svelte.js';
 	import Modal from '$lib/components/Modal.svelte';
 
-	// ── Data ──────────────────────────────────────────
 	let customers = $state([]);
 	let addresses = $state([]);
 	let loading = $state(true);
 
-	// ── Search & Sort ─────────────────────────────────
 	let search = $state('');
 	let sortCol = $state('customer_name');
 	let sortDir = $state('asc');
 
-	// ── Modals ────────────────────────────────────────
 	let showAdd = $state(false);
 	let showEdit = $state(false);
+	let showDetail = $state(false);
+	let detailCustomer = $state(null);
+	let detailLoading = $state(false);
 
-	// ── Form ──────────────────────────────────────────
 	let emptyForm = () => ({
-		customer_name: '',
-		email: '',
-		phone: '',
-		address_id: '',
-		newAddress: false,
-		street: '',
-		city: '',
-		zipcode: ''
+		customer_name: '', email: '', phone: '',
+		address_id: '', newAddress: false, street: '', city: '', zipcode: ''
 	});
 	let form = $state(emptyForm());
 	let editTarget = $state(null);
 
-	// ── Derived ───────────────────────────────────────
 	let filtered = $derived.by(() => {
 		const q = search.toLowerCase();
 		let list = q
@@ -53,21 +45,19 @@
 		return list;
 	});
 
-	// ── Init ──────────────────────────────────────────
 	onMount(loadAll);
 
 	async function loadAll() {
 		loading = true;
 		try {
-			const [cRaw, aRaw] = await Promise.all([api.get('/customers'), api.get('/addresses')]);
-			customers = normalizeCustomers(cRaw);
-			addresses = Array.isArray(aRaw) ? aRaw : [];
+			const [cRes, aRes] = await Promise.all([api.get('/customers'), api.get('/addresses')]);
+			customers = cRes.data ?? [];
+			addresses = Array.isArray(aRes) ? aRes : [];
 		} finally {
 			loading = false;
 		}
 	}
 
-	// ── Sort ──────────────────────────────────────────
 	/** @param {string} col */
 	function setSort(col) {
 		if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -75,29 +65,21 @@
 	}
 
 	/** @param {string} col */
-	function si(col) {
-		return sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕';
-	}
+	function si(col) { return sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'; }
 
-	// ── Add Customer ──────────────────────────────────
-	function openAdd() {
-		form = emptyForm();
-		showAdd = true;
-	}
+	function openAdd() { form = emptyForm(); showAdd = true; }
 
-	async function resolveAddressId() {
-		if (form.newAddress) {
+	async function resolveAddress() {
+		if (form.address_id === '__new__') {
 			if (!form.street.trim() || !form.city.trim() || !form.zipcode.trim()) {
-				addToast('Straße, Stadt und PLZ sind für die neue Adresse erforderlich', 'warning');
+				addToast('Straße, Stadt und PLZ sind erforderlich', 'warning');
 				return null;
 			}
 			const newAddr = await api.post('/addresses', {
-				street: form.street.trim(),
-				city: form.city.trim(),
-				zipcode: form.zipcode.trim()
+				street: form.street.trim(), city: form.city.trim(), zipcode: form.zipcode.trim()
 			});
 			addresses = await api.get('/addresses');
-			return newAddr?.id ?? newAddr?.address_id;
+			return newAddr?.address_id;
 		}
 		return form.address_id || undefined;
 	}
@@ -105,7 +87,7 @@
 	async function saveCustomer() {
 		if (!form.customer_name.trim()) return addToast('Name ist erforderlich', 'warning');
 		try {
-			const address_id = await resolveAddressId();
+			const address_id = await resolveAddress();
 			await api.post('/customers', {
 				customer_name: form.customer_name.trim(),
 				email: form.email.trim() || undefined,
@@ -114,23 +96,19 @@
 			});
 			addToast('Kunde hinzugefügt', 'success');
 			showAdd = false;
-			customers = normalizeCustomers(await api.get('/customers'));
+			customers = (await api.get('/customers')).data ?? [];
 		} catch { /* handled */ }
 	}
 
-	// ── Edit Customer ─────────────────────────────────
 	/** @param {any} c */
 	function openEdit(c) {
-		editTarget = normalizeCustomer(c);
+		editTarget = c;
 		form = {
 			customer_name: c.customer_name ?? '',
 			email: c.email ?? '',
 			phone: c.phone ?? '',
 			address_id: c.address_id ?? '',
-			newAddress: false,
-			street: '',
-			city: '',
-			zipcode: ''
+			newAddress: false, street: '', city: '', zipcode: ''
 		};
 		showEdit = true;
 	}
@@ -138,11 +116,8 @@
 	async function updateCustomer() {
 		if (!form.customer_name.trim()) return addToast('Name ist erforderlich', 'warning');
 		try {
-			const id = editTarget?.id ?? editTarget?.customer_id ?? editTarget?.customerId;
-			if (!id) return addToast('Kunden-ID fehlt', 'error');
-
-			const address_id = await resolveAddressId();
-			await api.put('/customers/' + id, {
+			const address_id = await resolveAddress();
+			await api.put('/customers/' + editTarget.customer_id, {
 				customer_name: form.customer_name.trim(),
 				email: form.email.trim() || undefined,
 				phone: form.phone.trim() || undefined,
@@ -150,49 +125,42 @@
 			});
 			addToast('Kunde aktualisiert', 'success');
 			showEdit = false;
-			customers = normalizeCustomers(await api.get('/customers'));
+			customers = (await api.get('/customers')).data ?? [];
 		} catch { /* handled */ }
 	}
 
-	// ── Delete ────────────────────────────────────────
 	/** @param {any} c */
 	async function deleteCustomer(c) {
 		if (!confirm(`Kunden "${c.customer_name}" löschen?`)) return;
 		try {
-			const id = c?.id ?? c?.customer_id ?? c?.customerId;
-			if (!id) return addToast('Kunden-ID fehlt', 'error');
-
-			await api.del('/customers/' + id);
+			await api.del('/customers/' + c.customer_id);
 			addToast('Kunde gelöscht', 'success');
-			customers = normalizeCustomers(await api.get('/customers'));
+			customers = (await api.get('/customers')).data ?? [];
 		} catch { /* handled */ }
 	}
 
-	// ── Helpers ───────────────────────────────────────
 	/** @param {any} c */
-	function normalizeCustomer(c) {
-		const id = c?.id ?? c?.customer_id ?? c?.customerId;
-		return id == null ? c : { ...c, id };
-	}
-
-	/** @param {any} list */
-	function normalizeCustomers(list) {
-		return Array.isArray(list) ? list.map(normalizeCustomer) : [];
-	}
-
-	/** @param {any} addrId */
-	function addrLabel(addrId) {
-		const a = addresses.find((a) => String(a.id) === String(addrId));
-		if (!a) return '—';
-		return `${a.street}, ${a.zipcode} ${a.city}`;
+	async function openDetail(c) {
+		detailLoading = true;
+		showDetail = true;
+		detailCustomer = null;
+		try {
+			detailCustomer = await api.get('/customers/' + c.customer_id);
+		} finally {
+			detailLoading = false;
+		}
 	}
 
 	/** @param {any} c */
 	function displayAddr(c) {
 		if (c.street) return `${c.street}, ${c.zipcode ?? ''} ${c.city ?? ''}`.trim();
-		if (c.address_id) return addrLabel(c.address_id);
+		const a = addresses.find((a) => String(a.address_id) === String(c.address_id));
+		if (a) return `${a.street}, ${a.zipcode} ${a.city}`;
 		return '—';
 	}
+
+	/** @param {string} d */
+	function fmt(d) { return d ? d.slice(0, 10) : '—'; }
 </script>
 
 <svelte:head><title>Kunden — Buchverleih</title></svelte:head>
@@ -224,7 +192,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each filtered as c, i (c.id ?? i)}
+					{#each filtered as c (c.customer_id)}
 						<tr>
 							<td><strong>{c.customer_name}</strong></td>
 							<td>{c.email ?? '—'}</td>
@@ -232,6 +200,7 @@
 							<td class="addr-cell">{displayAddr(c)}</td>
 							<td>
 								<div class="td-actions">
+									<button class="btn btn-ghost btn-sm" onclick={() => openDetail(c)}>Details</button>
 									<button class="btn btn-secondary btn-sm" onclick={() => openEdit(c)}>Bearbeiten</button>
 									<button class="btn btn-danger btn-sm" onclick={() => deleteCustomer(c)}>Löschen</button>
 								</div>
@@ -262,6 +231,81 @@
 	</div>
 </Modal>
 
+<!-- Customer Detail Modal -->
+<Modal title={detailCustomer ? detailCustomer.customer_name : 'Kundendetails'} bind:open={showDetail}>
+	{#if detailLoading}
+		<div class="loading-state"><div class="spinner"></div> Laden…</div>
+	{:else if detailCustomer}
+		<dl class="detail-grid">
+			<dt>E-Mail</dt><dd>{detailCustomer.email ?? '—'}</dd>
+			<dt>Telefon</dt><dd>{detailCustomer.phone ?? '—'}</dd>
+			{#if detailCustomer.street}
+				<dt>Adresse</dt><dd>{detailCustomer.street}, {detailCustomer.zipcode ?? ''} {detailCustomer.city ?? ''}</dd>
+			{/if}
+		</dl>
+
+		<div class="detail-section">
+			<h4>Ausleihen ({detailCustomer.rental_history?.length ?? 0})</h4>
+			{#if detailCustomer.rental_history?.length}
+				<div class="mini-table-wrap">
+					<table class="mini-table">
+						<thead>
+							<tr><th>Buch</th><th>Ausgeliehen</th><th>Fällig</th><th>Status</th></tr>
+						</thead>
+						<tbody>
+							{#each detailCustomer.rental_history as r (r.rental_id)}
+								<tr>
+									<td>{r.book_title ?? '—'}</td>
+									<td>{fmt(r.rental_date)}</td>
+									<td>{fmt(r.required_date)}</td>
+									<td>
+										{#if r.status === 'returned'}
+											<span class="badge badge-neutral">Zurückgegeben</span>
+										{:else}
+											<span class="badge badge-success">Offen</span>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{:else}
+				<p class="empty-inline">Keine Ausleihen vorhanden.</p>
+			{/if}
+		</div>
+
+		<div class="detail-section">
+			<h4>Mahnungen ({detailCustomer.admonitions?.length ?? 0})</h4>
+			{#if detailCustomer.admonitions?.length}
+				<div class="mini-table-wrap">
+					<table class="mini-table">
+						<thead>
+							<tr><th>Datum</th><th>Buch</th><th>Typ</th><th>Betrag</th></tr>
+						</thead>
+						<tbody>
+							{#each detailCustomer.admonitions as a (a.admonition_id)}
+								<tr>
+									<td>{fmt(a.admonition_date)}</td>
+									<td>{a.book_title ?? '—'}</td>
+									<td><span class="badge badge-warning">{a.admonition_type_name}</span></td>
+									<td class="amount">€{Number(a.amount ?? 0).toFixed(2)}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{:else}
+				<p class="empty-inline">Keine Mahnungen vorhanden.</p>
+			{/if}
+		</div>
+
+		<div class="form-actions">
+			<button class="btn btn-secondary" onclick={() => (showDetail = false)}>Schließen</button>
+		</div>
+	{/if}
+</Modal>
+
 {#snippet customerForm()}
 	<div class="form-group">
 		<label for="cname">Name <span class="req">*</span></label>
@@ -274,19 +318,15 @@
 		</div>
 		<div class="form-group">
 			<label for="cphone">Telefon</label>
-			<input id="cphone" type="tel" bind:value={form.phone} placeholder="+49 …" />
+			<input id="cphone" type="tel" bind:value={form.phone} placeholder="+43 …" />
 		</div>
 	</div>
 	<div class="form-group">
 		<label for="caddr">Adresse</label>
-		<select
-			id="caddr"
-			bind:value={form.address_id}
-			onchange={() => (form.newAddress = form.address_id === '__new__')}
-		>
+		<select id="caddr" bind:value={form.address_id}>
 			<option value="">— Keine Adresse —</option>
 			{#each addresses as a}
-				<option value={a.id}>{a.street}, {a.zipcode} {a.city}</option>
+				<option value={a.address_id}>{a.street}, {a.zipcode} {a.city}</option>
 			{/each}
 			<option value="__new__">+ Neue Adresse erstellen…</option>
 		</select>
@@ -301,11 +341,11 @@
 			<div class="form-row">
 				<div class="form-group">
 					<label for="nzip">PLZ <span class="req">*</span></label>
-					<input id="nzip" bind:value={form.zipcode} placeholder="12345" />
+					<input id="nzip" bind:value={form.zipcode} placeholder="1010" />
 				</div>
 				<div class="form-group">
 					<label for="ncity">Stadt <span class="req">*</span></label>
-					<input id="ncity" bind:value={form.city} placeholder="Musterstadt" />
+					<input id="ncity" bind:value={form.city} placeholder="Wien" />
 				</div>
 			</div>
 		</div>
@@ -313,13 +353,28 @@
 {/snippet}
 
 <style>
-	.addr-cell {
-		font-size: 0.8125rem;
-		color: var(--text-muted);
-		max-width: 240px;
+	.addr-cell { font-size: 0.8125rem; color: var(--text-muted); max-width: 240px; }
+	.req { color: var(--danger); }
+
+	.detail-grid {
+		display: grid;
+		grid-template-columns: 120px 1fr;
+		gap: 0.4rem 1rem;
+		margin: 0 0 1rem;
+		font-size: 0.875rem;
 	}
 
-	.req {
-		color: var(--danger);
-	}
+	dt { color: var(--text-muted); font-weight: 500; align-self: center; }
+	dd { margin: 0; }
+
+	.detail-section { margin-bottom: 1.25rem; }
+	.detail-section h4 { font-size: 0.875rem; font-weight: 600; margin: 0 0 0.625rem; }
+
+	.mini-table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+	.mini-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+	.mini-table th { background: #f8fafc; padding: 0.4rem 0.75rem; text-align: left; font-weight: 600; font-size: 0.75rem; color: var(--text-muted); }
+	.mini-table td { padding: 0.4rem 0.75rem; border-top: 1px solid var(--border); }
+
+	.empty-inline { color: var(--text-muted); font-size: 0.875rem; margin: 0; }
+	.amount { font-weight: 600; color: var(--warning-h, #b45309); }
 </style>

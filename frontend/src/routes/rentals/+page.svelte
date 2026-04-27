@@ -4,7 +4,6 @@
 	import { addToast } from '$lib/toast.svelte.js';
 	import Modal from '$lib/components/Modal.svelte';
 
-	// ── Data ──────────────────────────────────────────
 	let rentals = $state([]);
 	let returns = $state([]);
 	let customers = $state([]);
@@ -13,44 +12,27 @@
 	let books = $state([]);
 	let loading = $state(true);
 
-	// ── Filters & Sort ────────────────────────────────
-	let filter = $state('all'); // 'all' | 'active' | 'overdue' | 'returned'
+	let filter = $state('all');
 	let search = $state('');
 	let sortCol = $state('rental_date');
 	let sortDir = $state('desc');
 
-	// ── Modals ────────────────────────────────────────
 	let showNew = $state(false);
 	let showReturn = $state(false);
+	let showDetail = $state(false);
+	let detailRental = $state(null);
 
-	// ── Forms ─────────────────────────────────────────
-	let newForm = $state({
-		rental_date: today(),
-		required_date: '',
-		customer_id: '',
-		employee_id: '',
-		book_copy_id: ''
-	});
+	let newForm = $state({ customer_id: '', employee_id: '', book_copy_id: '' });
+	let returnForm = $state({ rental_id: '', employee_id: '' });
 
-	let returnForm = $state({
-		rental_id: '',
-		return_date: today(),
-		employee_id: '',
-		rent_amount: ''
-	});
+	function today() { return new Date().toISOString().slice(0, 10); }
 
-	function today() {
-		return new Date().toISOString().slice(0, 10);
-	}
-
-	// ── Derived ───────────────────────────────────────
 	let returnedIds = $derived(new Set(returns.map((r) => r.rental_id)));
 
 	let filtered = $derived.by(() => {
 		const t = today();
 		let list = rentals.filter((r) => {
-			const id = r.rental_id ?? r.id;
-			const isReturned = returnedIds.has(id);
+			const isReturned = returnedIds.has(r.rental_id);
 			const dueDate = (r.required_date ?? '').slice(0, 10);
 			const isOverdue = !isReturned && dueDate && dueDate < t;
 
@@ -64,8 +46,7 @@
 					!r.book_title?.toLowerCase().includes(q) &&
 					!r.customer_name?.toLowerCase().includes(q) &&
 					!r.employee_name?.toLowerCase().includes(q)
-				)
-					return false;
+				) return false;
 			}
 			return true;
 		});
@@ -80,23 +61,21 @@
 		return list;
 	});
 
-	// available copies = copies not currently rented out (and not returned)
 	let availableCopies = $derived.by(() => {
 		const activeRentalCopyIds = new Set(
 			rentals
-				.filter((r) => !returnedIds.has(r.rental_id ?? r.id))
+				.filter((r) => !returnedIds.has(r.rental_id))
 				.map((r) => r.book_copy_id)
 		);
-		return copies.filter((c) => !activeRentalCopyIds.has(c.id));
+		return copies.filter((c) => !activeRentalCopyIds.has(c.book_copy_id));
 	});
 
-	// ── Init ──────────────────────────────────────────
 	onMount(loadAll);
 
 	async function loadAll() {
 		loading = true;
 		try {
-			[rentals, returns, customers, employees, copies, books] = await Promise.all([
+			const [r, ret, cRes, e, cp, bRes] = await Promise.all([
 				api.get('/rentals'),
 				api.get('/book-returns'),
 				api.get('/customers'),
@@ -104,12 +83,17 @@
 				api.get('/book-copies'),
 				api.get('/books')
 			]);
+			rentals = r;
+			returns = ret;
+			customers = cRes.data ?? [];
+			employees = e;
+			copies = cp;
+			books = bRes.data ?? [];
 		} finally {
 			loading = false;
 		}
 	}
 
-	// ── Sort ──────────────────────────────────────────
 	/** @param {string} col */
 	function setSort(col) {
 		if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -117,19 +101,10 @@
 	}
 
 	/** @param {string} col */
-	function si(col) {
-		return sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕';
-	}
+	function si(col) { return sortCol === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'; }
 
-	// ── New Rental ────────────────────────────────────
 	function openNew() {
-		newForm = {
-			rental_date: today(),
-			required_date: '',
-			customer_id: '',
-			employee_id: '',
-			book_copy_id: ''
-		};
+		newForm = { customer_id: '', employee_id: '', book_copy_id: '' };
 		showNew = true;
 	}
 
@@ -137,12 +112,8 @@
 		if (!newForm.customer_id) return addToast('Kunde ist erforderlich', 'warning');
 		if (!newForm.employee_id) return addToast('Mitarbeiter ist erforderlich', 'warning');
 		if (!newForm.book_copy_id) return addToast('Buchexemplar ist erforderlich', 'warning');
-		if (!newForm.rental_date) return addToast('Ausleihdatum ist erforderlich', 'warning');
-		if (!newForm.required_date) return addToast('Fälligkeitsdatum ist erforderlich', 'warning');
 		try {
 			await api.post('/rentals', {
-				rental_date: newForm.rental_date,
-				required_date: newForm.required_date,
 				customer_id: newForm.customer_id,
 				employee_id: newForm.employee_id,
 				book_copy_id: newForm.book_copy_id
@@ -153,67 +124,62 @@
 		} catch { /* handled */ }
 	}
 
-	// ── Return Book ───────────────────────────────────
 	/** @param {any} rental */
 	function openReturn(rental) {
-		const id = rental.rental_id ?? rental.id;
-		returnForm = {
-			rental_id: id,
-			return_date: today(),
-			employee_id: '',
-			rent_amount: ''
-		};
+		returnForm = { rental_id: rental.rental_id, employee_id: '' };
 		showReturn = true;
 	}
 
 	async function saveReturn() {
 		if (!returnForm.employee_id) return addToast('Mitarbeiter ist erforderlich', 'warning');
-		if (!returnForm.rent_amount) return addToast('Mietbetrag ist erforderlich', 'warning');
 		try {
-			await api.post('/book-returns', {
-				return_date: returnForm.return_date,
-				rental_id: returnForm.rental_id,
-				employee_id: returnForm.employee_id,
-				rent_amount: Number(returnForm.rent_amount)
+			const result = await api.post('/rentals/' + returnForm.rental_id + '/return', {
+				employee_id: returnForm.employee_id
 			});
-			addToast('Buch erfolgreich zurückgegeben', 'success');
+			if (result?.admonition) {
+				addToast(`Buch zurückgegeben — Mahnung ${result.admonition.admonition_type_name} (${result.admonition.late_days} Tage Verzug)`, 'warning');
+			} else {
+				addToast('Buch erfolgreich zurückgegeben', 'success');
+			}
 			showReturn = false;
 			[rentals, returns] = await Promise.all([api.get('/rentals'), api.get('/book-returns')]);
 		} catch { /* handled */ }
 	}
 
-	// ── Delete Rental ─────────────────────────────────
+	/** @param {any} rental */
+	function openDetail(rental) {
+		const ret = returns.find((r) => r.rental_id === rental.rental_id);
+		detailRental = { ...rental, bookReturn: ret ?? null };
+		showDetail = true;
+	}
+
 	/** @param {any} rental */
 	async function deleteRental(rental) {
 		if (!confirm('Diesen Ausleih-Datensatz löschen?')) return;
 		try {
-			await api.del('/rentals/' + (rental.rental_id ?? rental.id));
+			await api.del('/rentals/' + rental.rental_id);
 			addToast('Ausleihe gelöscht', 'success');
 			rentals = await api.get('/rentals');
 		} catch { /* handled */ }
 	}
 
-	// ── Helpers ───────────────────────────────────────
 	/** @param {any} rental */
 	function rentalStatus(rental) {
-		const id = rental.rental_id ?? rental.id;
-		if (returnedIds.has(id)) return 'returned';
+		if (returnedIds.has(rental.rental_id)) return 'returned';
 		const due = (rental.required_date ?? '').slice(0, 10);
 		if (due && due < today()) return 'overdue';
 		return 'active';
 	}
 
-	/** @param {string} dateStr */
-	function fmtDate(dateStr) {
-		return dateStr ? dateStr.slice(0, 10) : '—';
-	}
+	/** @param {string} d */
+	function fmt(d) { return d ? d.slice(0, 10) : '—'; }
 
 	/** @param {any} copyId */
 	function copyLabel(copyId) {
-		const copy = copies.find((c) => String(c.id) === String(copyId));
+		const copy = copies.find((c) => String(c.book_copy_id) === String(copyId));
 		if (!copy) return `Exemplar #${copyId}`;
-		const book = books.find((b) => String(b.id) === String(copy.book_id));
-		return book ? `${book.title} (Exemplar #${copy.id})` : `Exemplar #${copy.id}`;
+		const book = books.find((b) => String(b.book_id) === String(copy.book_id));
+		return book ? `${book.title} (Ex. #${copy.book_copy_id})` : `Ex. #${copy.book_copy_id}`;
 	}
 </script>
 
@@ -260,9 +226,11 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each filtered as r (r.rental_id ?? r.id)}
+					{#each filtered as r (r.rental_id)}
 						{@const status = rentalStatus(r)}
-						<tr class="row-{status}">
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<tr class="clickable row-{status}" onclick={() => openDetail(r)}>
 							<td>
 								{#if status === 'returned'}
 									<span class="badge badge-neutral">Zurückgegeben</span>
@@ -272,17 +240,16 @@
 									<span class="badge badge-success">Aktiv</span>
 								{/if}
 							</td>
-							<td>{r.book_title ?? r.title ?? '—'}</td>
+							<td>{r.book_title ?? '—'}</td>
 							<td>{r.customer_name ?? '—'}</td>
 							<td>{r.employee_name ?? '—'}</td>
-							<td>{fmtDate(r.rental_date)}</td>
-							<td class:overdue-date={status === 'overdue'}>{fmtDate(r.required_date)}</td>
+							<td>{fmt(r.rental_date)}</td>
+							<td class:overdue-date={status === 'overdue'}>{fmt(r.required_date)}</td>
 							<td>
-								<div class="td-actions">
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<div class="td-actions" onclick={(e) => e.stopPropagation()}>
 									{#if status !== 'returned'}
-										<button class="btn btn-success btn-sm" onclick={() => openReturn(r)}>
-											Zurückgeben
-										</button>
+										<button class="btn btn-success btn-sm" onclick={() => openReturn(r)}>Zurückgeben</button>
 									{/if}
 									<button class="btn btn-danger btn-sm" onclick={() => deleteRental(r)}>Löschen</button>
 								</div>
@@ -302,7 +269,7 @@
 		<select id="r-customer" bind:value={newForm.customer_id}>
 			<option value="">— Kunde wählen —</option>
 			{#each customers as c}
-				<option value={c.customer_id ?? c.id}>{c.customer_name}</option>
+				<option value={c.customer_id}>{c.customer_name}</option>
 			{/each}
 		</select>
 	</div>
@@ -311,7 +278,7 @@
 		<select id="r-employee" bind:value={newForm.employee_id}>
 			<option value="">— Mitarbeiter wählen —</option>
 			{#each employees as e}
-				<option value={e.id}>{e.employee_name}</option>
+				<option value={e.employee_id}>{e.employee_name}</option>
 			{/each}
 		</select>
 	</div>
@@ -320,23 +287,14 @@
 		<select id="r-copy" bind:value={newForm.book_copy_id}>
 			<option value="">— Verfügbares Exemplar wählen —</option>
 			{#each availableCopies as c}
-				<option value={c.id}>{copyLabel(c.id)}</option>
+				<option value={c.book_copy_id}>{copyLabel(c.book_copy_id)}</option>
 			{/each}
 		</select>
 		{#if availableCopies.length === 0}
 			<small class="hint">Keine Exemplare verfügbar.</small>
 		{/if}
 	</div>
-	<div class="form-row">
-		<div class="form-group">
-			<label for="r-date">Ausleihdatum <span class="req">*</span></label>
-			<input id="r-date" type="date" bind:value={newForm.rental_date} />
-		</div>
-		<div class="form-group">
-			<label for="r-due">Fälligkeitsdatum <span class="req">*</span></label>
-			<input id="r-due" type="date" bind:value={newForm.required_date} />
-		</div>
-	</div>
+	<p class="hint-info">Ausleihdatum und Fälligkeitsdatum werden automatisch gesetzt.</p>
 	<div class="form-actions">
 		<button class="btn btn-secondary" onclick={() => (showNew = false)}>Abbrechen</button>
 		<button class="btn btn-primary" onclick={saveRental}>Ausleihe erstellen</button>
@@ -354,40 +312,56 @@
 		<select id="ret-employee" bind:value={returnForm.employee_id}>
 			<option value="">— Mitarbeiter wählen —</option>
 			{#each employees as e}
-				<option value={e.id}>{e.employee_name}</option>
+				<option value={e.employee_id}>{e.employee_name}</option>
 			{/each}
 		</select>
 	</div>
-	<div class="form-row">
-		<div class="form-group">
-			<label for="ret-date">Rückgabedatum</label>
-			<input id="ret-date" type="date" bind:value={returnForm.return_date} />
-		</div>
-		<div class="form-group">
-			<label for="ret-amount">Mietbetrag (€) <span class="req">*</span></label>
-			<input id="ret-amount" type="number" min="0" step="0.01" bind:value={returnForm.rent_amount} placeholder="0.00" />
-		</div>
-	</div>
+	<p class="hint-info">Mietbetrag wird automatisch berechnet. Bei Überschreitung wird eine Mahnung ausgelöst.</p>
 	<div class="form-actions">
 		<button class="btn btn-secondary" onclick={() => (showReturn = false)}>Abbrechen</button>
 		<button class="btn btn-success" onclick={saveReturn}>Rückgabe bestätigen</button>
 	</div>
 </Modal>
 
-<style>
-	.toolbar {
-		display: flex;
-		gap: 1rem;
-		margin-bottom: 1rem;
-		flex-wrap: wrap;
-		align-items: center;
-	}
+<!-- Rental Detail Modal -->
+{#if detailRental}
+	<Modal title="Ausleihe #{detailRental.rental_id}" bind:open={showDetail}>
+		{@const status = rentalStatus(detailRental)}
+		<div style="margin-bottom:1rem;">
+			{#if status === 'returned'}
+				<span class="badge badge-neutral">Zurückgegeben</span>
+			{:else if status === 'overdue'}
+				<span class="badge badge-danger">Überfällig</span>
+			{:else}
+				<span class="badge badge-success">Aktiv</span>
+			{/if}
+		</div>
+		<dl class="detail-grid">
+			<dt>Buch</dt><dd>{detailRental.book_title ?? '—'}</dd>
+			<dt>Kunde</dt><dd>{detailRental.customer_name ?? '—'}</dd>
+			<dt>Mitarbeiter</dt><dd>{detailRental.employee_name ?? '—'}</dd>
+			<dt>Ausgeliehen</dt><dd>{fmt(detailRental.rental_date)}</dd>
+			<dt>Fällig</dt><dd class:danger-text={status === 'overdue'}>{fmt(detailRental.required_date)}</dd>
+			{#if detailRental.bookReturn}
+				<dt>Zurückgegeben</dt><dd>{fmt(detailRental.bookReturn.return_date)}</dd>
+				<dt>Mietbetrag</dt><dd>€{Number(detailRental.bookReturn.rent_amount ?? 0).toFixed(2)}</dd>
+			{/if}
+		</dl>
+		<div class="form-actions">
+			<button class="btn btn-secondary" onclick={() => (showDetail = false)}>Schließen</button>
+			{#if status !== 'returned'}
+				<button class="btn btn-success" onclick={() => { showDetail = false; openReturn(detailRental); }}>
+					Zurückgeben
+				</button>
+			{/if}
+		</div>
+	</Modal>
+{/if}
 
-	.filter-tabs {
-		display: flex;
-		gap: 0.375rem;
-		flex-wrap: wrap;
-	}
+<style>
+	.toolbar { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+
+	.filter-tabs { display: flex; gap: 0.375rem; flex-wrap: wrap; }
 
 	.filter-pill {
 		padding: 0.3125rem 0.875rem;
@@ -402,37 +376,28 @@
 		font-family: inherit;
 	}
 
-	.filter-pill:hover {
-		background: var(--bg);
-		color: var(--text);
+	.filter-pill:hover { background: var(--bg); color: var(--text); }
+	.filter-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+	.filter-pill.overdue-pill { background: var(--danger); border-color: var(--danger); }
+
+	.clickable { cursor: pointer; }
+	.clickable:hover td { background: #f8fafc !important; }
+
+	:global(.row-overdue td) { background: #fff9f9 !important; }
+	.overdue-date { color: var(--danger); font-weight: 600; }
+
+	.detail-grid {
+		display: grid;
+		grid-template-columns: 130px 1fr;
+		gap: 0.5rem 1rem;
+		margin: 0 0 1rem;
 	}
 
-	.filter-pill.active {
-		background: var(--primary);
-		color: #fff;
-		border-color: var(--primary);
-	}
+	dt { font-size: 0.8125rem; color: var(--text-muted); font-weight: 500; align-self: center; }
+	dd { margin: 0; font-size: 0.9375rem; }
+	.danger-text { color: var(--danger); font-weight: 600; }
 
-	.filter-pill.overdue-pill {
-		background: var(--danger);
-		border-color: var(--danger);
-	}
-
-	:global(.row-overdue td) {
-		background: #fff9f9 !important;
-	}
-
-	.overdue-date {
-		color: var(--danger);
-		font-weight: 600;
-	}
-
-	.req {
-		color: var(--danger);
-	}
-
-	.hint {
-		color: var(--text-muted);
-		font-size: 0.75rem;
-	}
+	.req { color: var(--danger); }
+	.hint { color: var(--text-muted); font-size: 0.75rem; }
+	.hint-info { font-size: 0.8125rem; color: var(--text-muted); margin: 0 0 0.75rem; }
 </style>

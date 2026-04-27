@@ -14,17 +14,17 @@ DROP TABLE IF EXISTS Book_Condition;
 
 
 CREATE TABLE Genre (
-    genre_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    genre_id INTEGER PRIMARY KEY,
     genre_name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE Author (
-    author_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author_id INTEGER PRIMARY KEY,
     author_name TEXT NOT NULL
 );
 
 CREATE TABLE Book (
-    book_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER PRIMARY KEY,
     title TEXT NOT NULL,
     isbn TEXT UNIQUE,
     genre_id INTEGER,
@@ -33,7 +33,7 @@ CREATE TABLE Book (
 );
 
 CREATE TABLE Book_Author (
-    book_author_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_author_id INTEGER PRIMARY KEY,
     book_id INTEGER NOT NULL,
     author_id INTEGER NOT NULL,
     FOREIGN KEY (book_id) REFERENCES Book(book_id),
@@ -42,23 +42,23 @@ CREATE TABLE Book_Author (
 );
 
 CREATE TABLE Book_Condition (
-    book_condition_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_condition_id INTEGER PRIMARY KEY,
     book_condition_name TEXT UNIQUE
 );
 
 CREATE TABLE Book_Copy (
-    book_copy_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_copy_id INTEGER PRIMARY KEY,
     book_id INTEGER NOT NULL,
     max_rental_days INTEGER DEFAULT 30,
     rent_per_day REAL DEFAULT 0.15,
-    book_condition_id INTEGER NOT NULL,
+    condition_id INTEGER NOT NULL,
     condition_description TEXT,
     FOREIGN KEY (book_id) REFERENCES Book(book_id),
-    FOREIGN KEY (book_condition_id) REFERENCES Book_Condition(book_condition_id)
+    FOREIGN KEY (condition_id) REFERENCES Book_Condition(book_condition_id)
 );
 
 CREATE TABLE Address (
-    address_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    address_id INTEGER PRIMARY KEY,
     zipcode TEXT,
     city TEXT,
     street TEXT,
@@ -67,7 +67,7 @@ CREATE TABLE Address (
 );
 
 CREATE TABLE Customer (
-    customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_id INTEGER PRIMARY KEY,
     customer_name TEXT NOT NULL,
     email TEXT UNIQUE,
     phone TEXT UNIQUE,
@@ -77,7 +77,7 @@ CREATE TABLE Customer (
 );
 
 CREATE TABLE Employee (
-    employee_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER PRIMARY KEY,
     employee_name TEXT NOT NULL,
     employee_username TEXT NOT NULL UNIQUE,
     employee_password TEXT NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE Employee (
 );
 
 CREATE TABLE Rental (
-    rental_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rental_id INTEGER PRIMARY KEY,
     rental_date TEXT NOT NULL,
     required_date TEXT,
     customer_id INTEGER NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE Rental (
 );
 
 CREATE TABLE Book_Return (
-    book_return_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_return_id INTEGER PRIMARY KEY,
     return_date TEXT NOT NULL,
     rental_id INTEGER NOT NULL,
     employee_id INTEGER,
@@ -108,16 +108,21 @@ CREATE TABLE Book_Return (
 );
 
 CREATE TABLE Admonition_Type (
-    admonition_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admonition_type_id INTEGER PRIMARY KEY,
     admonition_type_name TEXT UNIQUE,
     amount REAL DEFAULT 0
 );
 
 CREATE TABLE Admonition (
-    admonition_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admonition_id INTEGER PRIMARY KEY,
     admonition_date TEXT NOT NULL,
-    rental_id INTEGER NOT NULL,
+    book_return_id INTEGER NOT NULL,
     admonition_type_id INTEGER NOT NULL,
-    FOREIGN KEY (rental_id) REFERENCES Rental(rental_id),
+    FOREIGN KEY (book_return_id) REFERENCES Book_Return(book_return_id),
     FOREIGN KEY (admonition_type_id) REFERENCES Admonition_Type(admonition_type_id)
 );
+
+-- Seed: Admonition levels (1-7 days / 8-30 days / >30 days)
+INSERT INTO Admonition_Type (admonition_type_name, amount) VALUES ('Stufe 1', 5.00);
+INSERT INTO Admonition_Type (admonition_type_name, amount) VALUES ('Stufe 2', 15.00);
+INSERT INTO Admonition_Type (admonition_type_name, amount) VALUES ('Stufe 3', 30.00);

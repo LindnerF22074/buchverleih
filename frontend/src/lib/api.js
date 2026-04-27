@@ -1,4 +1,5 @@
 import { addToast } from './toast.svelte.js';
+import { auth, logout } from './auth.svelte.js';
 
 const BASE = '/api';
 
@@ -9,14 +10,25 @@ const BASE = '/api';
  */
 async function request(method, path, body) {
 	try {
+		/** @type {Record<string,string>} */
+		const headers = {};
 		/** @type {RequestInit} */
-		const opts = { method };
+		const opts = { method, headers };
+
 		if (body !== undefined) {
-			opts.headers = { 'Content-Type': 'application/json' };
+			headers['Content-Type'] = 'application/json';
 			opts.body = JSON.stringify(body);
 		}
 
+		if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+
 		const res = await fetch(BASE + path, opts);
+
+		if (res.status === 401 && path !== '/auth/login') {
+			logout();
+			window.location.href = '/login';
+			throw new Error('Sitzung abgelaufen. Bitte erneut anmelden.');
+		}
 
 		if (!res.ok) {
 			let msg = `HTTP ${res.status}`;

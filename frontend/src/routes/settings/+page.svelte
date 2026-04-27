@@ -3,7 +3,6 @@
 	import { api } from '$lib/api.js';
 	import { addToast } from '$lib/toast.svelte.js';
 
-	// ── Tabs ──────────────────────────────────────────
 	const TABS = [
 		{ id: 'genres', label: 'Genres' },
 		{ id: 'authors', label: 'Autoren' },
@@ -14,7 +13,6 @@
 	];
 	let activeTab = $state('genres');
 
-	// ── Data ──────────────────────────────────────────
 	let genres = $state([]);
 	let authors = $state([]);
 	let conditions = $state([]);
@@ -23,7 +21,6 @@
 	let addresses = $state([]);
 	let loading = $state(true);
 
-	// ── Add forms ─────────────────────────────────────
 	let newGenre = $state('');
 	let newAuthor = $state('');
 	let newCondition = $state('');
@@ -33,7 +30,6 @@
 
 	let saving = $state(false);
 
-	// ── Init ──────────────────────────────────────────
 	onMount(loadAll);
 
 	async function loadAll() {
@@ -52,23 +48,20 @@
 		}
 	}
 
-	// ── Generic delete helper ─────────────────────────
 	/**
 	 * @param {string} endpoint
-	 * @param {any} item
-	 * @param {string} nameField
+	 * @param {any} id
+	 * @param {string} label
 	 */
-	async function deleteItem(endpoint, item, nameField) {
-		const name = item[nameField] ?? `#${item.id}`;
-		if (!confirm(`"${name}" löschen?`)) return;
+	async function deleteById(endpoint, id, label) {
+		if (!confirm(`"${label}" löschen?`)) return;
 		try {
-			await api.del(endpoint + '/' + item.id);
+			await api.del(endpoint + '/' + id);
 			addToast('Gelöscht', 'success');
 			await loadAll();
 		} catch { /* handled */ }
 	}
 
-	// ── Genres ────────────────────────────────────────
 	async function addGenre() {
 		if (!newGenre.trim()) return addToast('Genre-Name ist erforderlich', 'warning');
 		saving = true;
@@ -77,12 +70,9 @@
 			addToast('Genre hinzugefügt', 'success');
 			newGenre = '';
 			genres = await api.get('/genres');
-		} catch { /* handled */ } finally {
-			saving = false;
-		}
+		} catch { /* handled */ } finally { saving = false; }
 	}
 
-	// ── Authors ───────────────────────────────────────
 	async function addAuthor() {
 		if (!newAuthor.trim()) return addToast('Autorenname ist erforderlich', 'warning');
 		saving = true;
@@ -91,12 +81,9 @@
 			addToast('Autor hinzugefügt', 'success');
 			newAuthor = '';
 			authors = await api.get('/authors');
-		} catch { /* handled */ } finally {
-			saving = false;
-		}
+		} catch { /* handled */ } finally { saving = false; }
 	}
 
-	// ── Book Conditions ───────────────────────────────
 	async function addCondition() {
 		if (!newCondition.trim()) return addToast('Zustandsname ist erforderlich', 'warning');
 		saving = true;
@@ -105,12 +92,9 @@
 			addToast('Zustand hinzugefügt', 'success');
 			newCondition = '';
 			conditions = await api.get('/book-conditions');
-		} catch { /* handled */ } finally {
-			saving = false;
-		}
+		} catch { /* handled */ } finally { saving = false; }
 	}
 
-	// ── Admonition Types ──────────────────────────────
 	async function addAdmType() {
 		if (!newAdmType.admonition_type_name.trim()) return addToast('Typbezeichnung ist erforderlich', 'warning');
 		if (!newAdmType.amount) return addToast('Betrag ist erforderlich', 'warning');
@@ -123,12 +107,9 @@
 			addToast('Mahnungstyp hinzugefügt', 'success');
 			newAdmType = { admonition_type_name: '', amount: '' };
 			admTypes = await api.get('/admonition-types');
-		} catch { /* handled */ } finally {
-			saving = false;
-		}
+		} catch { /* handled */ } finally { saving = false; }
 	}
 
-	// ── Employees ─────────────────────────────────────
 	async function addEmployee() {
 		if (!newEmployee.employee_name.trim()) return addToast('Name ist erforderlich', 'warning');
 		if (!newEmployee.employee_username.trim()) return addToast('Benutzername ist erforderlich', 'warning');
@@ -143,12 +124,9 @@
 			addToast('Mitarbeiter hinzugefügt', 'success');
 			newEmployee = { employee_name: '', employee_username: '', employee_password: '' };
 			employees = await api.get('/employees');
-		} catch { /* handled */ } finally {
-			saving = false;
-		}
+		} catch { /* handled */ } finally { saving = false; }
 	}
 
-	// ── Addresses ─────────────────────────────────────
 	async function addAddress() {
 		if (!newAddress.street.trim() || !newAddress.city.trim() || !newAddress.zipcode.trim()) {
 			return addToast('Alle Adressfelder sind erforderlich', 'warning');
@@ -163,9 +141,7 @@
 			addToast('Adresse hinzugefügt', 'success');
 			newAddress = { street: '', city: '', zipcode: '' };
 			addresses = await api.get('/addresses');
-		} catch { /* handled */ } finally {
-			saving = false;
-		}
+		} catch { /* handled */ } finally { saving = false; }
 	}
 </script>
 
@@ -175,14 +151,11 @@
 	<h1 class="page-title">Einstellungen</h1>
 </div>
 
-<!-- Tab navigation -->
 <div class="tab-nav">
 	{#each TABS as tab}
-		<button
-			class="tab-btn"
-			class:active={activeTab === tab.id}
-			onclick={() => (activeTab = tab.id)}
-		>{tab.label}</button>
+		<button class="tab-btn" class:active={activeTab === tab.id} onclick={() => (activeTab = tab.id)}>
+			{tab.label}
+		</button>
 	{/each}
 </div>
 
@@ -190,7 +163,6 @@
 	<div class="loading-state"><div class="spinner"></div> Laden…</div>
 {:else}
 
-	<!-- Genres Tab -->
 	{#if activeTab === 'genres'}
 		<div class="settings-layout">
 			<div class="card list-card">
@@ -200,10 +172,10 @@
 						<p class="empty-inline">Noch keine Genres vorhanden.</p>
 					{:else}
 						<ul class="item-list">
-							{#each genres as g (g.id)}
+							{#each genres as g (g.genre_id)}
 								<li>
 									<span>{g.genre_name}</span>
-									<button class="btn btn-danger btn-xs" onclick={() => deleteItem('/genres', g, 'genre_name')}>Löschen</button>
+									<button class="btn btn-danger btn-xs" onclick={() => deleteById('/genres', g.genre_id, g.genre_name)}>Löschen</button>
 								</li>
 							{/each}
 						</ul>
@@ -224,7 +196,6 @@
 		</div>
 	{/if}
 
-	<!-- Authors Tab -->
 	{#if activeTab === 'authors'}
 		<div class="settings-layout">
 			<div class="card list-card">
@@ -234,10 +205,10 @@
 						<p class="empty-inline">Noch keine Autoren vorhanden.</p>
 					{:else}
 						<ul class="item-list">
-							{#each authors as a (a.id)}
+							{#each authors as a (a.author_id)}
 								<li>
 									<span>{a.author_name}</span>
-									<button class="btn btn-danger btn-xs" onclick={() => deleteItem('/authors', a, 'author_name')}>Löschen</button>
+									<button class="btn btn-danger btn-xs" onclick={() => deleteById('/authors', a.author_id, a.author_name)}>Löschen</button>
 								</li>
 							{/each}
 						</ul>
@@ -258,7 +229,6 @@
 		</div>
 	{/if}
 
-	<!-- Book Conditions Tab -->
 	{#if activeTab === 'conditions'}
 		<div class="settings-layout">
 			<div class="card list-card">
@@ -268,10 +238,10 @@
 						<p class="empty-inline">Noch keine Zustände vorhanden.</p>
 					{:else}
 						<ul class="item-list">
-							{#each conditions as c (c.id)}
+							{#each conditions as c (c.book_condition_id)}
 								<li>
 									<span class="badge badge-neutral">{c.book_condition_name}</span>
-									<button class="btn btn-danger btn-xs" onclick={() => deleteItem('/book-conditions', c, 'book_condition_name')}>Löschen</button>
+									<button class="btn btn-danger btn-xs" onclick={() => deleteById('/book-conditions', c.book_condition_id, c.book_condition_name)}>Löschen</button>
 								</li>
 							{/each}
 						</ul>
@@ -292,7 +262,6 @@
 		</div>
 	{/if}
 
-	<!-- Admonition Types Tab -->
 	{#if activeTab === 'adm-types'}
 		<div class="settings-layout">
 			<div class="card list-card">
@@ -302,13 +271,13 @@
 						<p class="empty-inline">Noch keine Mahnungstypen vorhanden.</p>
 					{:else}
 						<ul class="item-list">
-							{#each admTypes as t (t.id)}
+							{#each admTypes as t (t.admonition_type_id)}
 								<li>
 									<div>
 										<strong>{t.admonition_type_name}</strong>
 										<span class="amount-chip">€{Number(t.amount ?? 0).toFixed(2)}</span>
 									</div>
-									<button class="btn btn-danger btn-xs" onclick={() => deleteItem('/admonition-types', t, 'admonition_type_name')}>Löschen</button>
+									<button class="btn btn-danger btn-xs" onclick={() => deleteById('/admonition-types', t.admonition_type_id, t.admonition_type_name)}>Löschen</button>
 								</li>
 							{/each}
 						</ul>
@@ -332,7 +301,6 @@
 		</div>
 	{/if}
 
-	<!-- Employees Tab -->
 	{#if activeTab === 'employees'}
 		<div class="settings-layout">
 			<div class="card list-card">
@@ -342,13 +310,13 @@
 						<p class="empty-inline">Noch keine Mitarbeiter vorhanden.</p>
 					{:else}
 						<ul class="item-list">
-							{#each employees as e (e.id)}
+							{#each employees as e (e.employee_id)}
 								<li>
 									<div>
 										<strong>{e.employee_name}</strong>
 										<span class="username-chip">@{e.employee_username}</span>
 									</div>
-									<button class="btn btn-danger btn-xs" onclick={() => deleteItem('/employees', e, 'employee_name')}>Löschen</button>
+									<button class="btn btn-danger btn-xs" onclick={() => deleteById('/employees', e.employee_id, e.employee_name)}>Löschen</button>
 								</li>
 							{/each}
 						</ul>
@@ -367,7 +335,7 @@
 						<input id="euname" bind:value={newEmployee.employee_username} placeholder="maxmuster" />
 					</div>
 					<div class="form-group">
-						<label for="epwd">Passwort</label>
+						<label for="epwd">Passwort (min. 8 Zeichen)</label>
 						<input id="epwd" type="password" bind:value={newEmployee.employee_password} placeholder="••••••••" />
 					</div>
 					<button class="btn btn-primary" onclick={addEmployee} disabled={saving}>Mitarbeiter hinzufügen</button>
@@ -376,7 +344,6 @@
 		</div>
 	{/if}
 
-	<!-- Addresses Tab -->
 	{#if activeTab === 'addresses'}
 		<div class="settings-layout">
 			<div class="card list-card">
@@ -386,7 +353,7 @@
 						<p class="empty-inline">Noch keine Adressen vorhanden.</p>
 					{:else}
 						<ul class="item-list addr-list">
-							{#each addresses as a (a.id)}
+							{#each addresses as a (a.address_id)}
 								<li>
 									<div class="addr-info">
 										<span class="addr-street">{a.street}</span>
@@ -408,11 +375,11 @@
 					<div class="form-row">
 						<div class="form-group">
 							<label for="azip">PLZ</label>
-							<input id="azip" bind:value={newAddress.zipcode} placeholder="12345" />
+							<input id="azip" bind:value={newAddress.zipcode} placeholder="1010" />
 						</div>
 						<div class="form-group">
 							<label for="acity">Stadt</label>
-							<input id="acity" bind:value={newAddress.city} placeholder="Musterstadt" />
+							<input id="acity" bind:value={newAddress.city} placeholder="Wien" />
 						</div>
 					</div>
 					<button class="btn btn-primary" onclick={addAddress} disabled={saving}>Adresse hinzufügen</button>
@@ -431,12 +398,7 @@
 		align-items: start;
 	}
 
-	.list-title {
-		font-size: 0.9375rem;
-		font-weight: 600;
-		margin-bottom: 1rem;
-		color: var(--text);
-	}
+	.list-title { font-size: 0.9375rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); }
 
 	.item-list {
 		list-style: none;
@@ -458,62 +420,22 @@
 		gap: 0.75rem;
 	}
 
-	.item-list li:hover {
-		background: #f0f4f8;
-	}
+	.item-list li:hover { background: #f0f4f8; }
 
-	.empty-inline {
-		color: var(--text-muted);
-		font-size: 0.875rem;
-		margin: 0;
-	}
+	.empty-inline { color: var(--text-muted); font-size: 0.875rem; margin: 0; }
 
-	.amount-chip {
-		display: inline-block;
-		margin-left: 0.5rem;
-		font-size: 0.8125rem;
-		color: var(--warning-h);
-		font-weight: 600;
-	}
+	.amount-chip { display: inline-block; margin-left: 0.5rem; font-size: 0.8125rem; color: var(--warning-h, #b45309); font-weight: 600; }
 
-	.username-chip {
-		display: inline-block;
-		margin-left: 0.5rem;
-		font-size: 0.8125rem;
-		color: var(--text-muted);
-		font-family: 'SFMono-Regular', monospace;
-	}
+	.username-chip { display: inline-block; margin-left: 0.5rem; font-size: 0.8125rem; color: var(--text-muted); font-family: 'SFMono-Regular', monospace; }
 
-	.addr-list li {
-		align-items: flex-start;
-	}
-
-	.addr-info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
-
-	.addr-street {
-		font-weight: 500;
-	}
-
-	.addr-city {
-		font-size: 0.8125rem;
-		color: var(--text-muted);
-	}
+	.addr-list li { align-items: flex-start; }
+	.addr-info { display: flex; flex-direction: column; gap: 0.125rem; }
+	.addr-street { font-weight: 500; }
+	.addr-city { font-size: 0.8125rem; color: var(--text-muted); }
 
 	@media (max-width: 900px) {
-		.settings-layout {
-			grid-template-columns: 1fr;
-		}
-
-		.list-card {
-			order: 2;
-		}
-
-		.add-card {
-			order: 1;
-		}
+		.settings-layout { grid-template-columns: 1fr; }
+		.list-card { order: 2; }
+		.add-card { order: 1; }
 	}
 </style>
