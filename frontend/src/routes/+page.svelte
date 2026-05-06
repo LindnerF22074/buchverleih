@@ -133,7 +133,7 @@
 				<div class="stat-label">Aktive Ausleihen</div>
 			</div>
 		</a>
-		<a href="/rentals" class="stat-card" class:danger={stats.overdue > 0}>
+		<a href="/rentals?filter=overdue" class="stat-card" class:danger={stats.overdue > 0}>
 			<div class="stat-icon red">⚠️</div>
 			<div>
 				<div class="stat-num" class:overdue-num={stats.overdue > 0}>{stats.overdue}</div>
@@ -246,7 +246,7 @@
 		{/if}
 		<div class="form-actions">
 			<button class="btn btn-secondary" onclick={() => (showDetail = false)}>Schließen</button>
-			<a href="/rentals" class="btn btn-primary">Zur Ausleihe</a>
+			<a href="/rentals?rental={detailRental.rental_id}" class="btn btn-primary">Zur Ausleihe</a>
 		</div>
 	</Modal>
 {/if}

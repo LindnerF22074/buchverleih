@@ -219,8 +219,30 @@ app.put('/api/books/:id', (req, res) => {
 });
 
 app.delete('/api/books/:id', (req, res) => {
-  const result = db.prepare(`DELETE FROM Book WHERE book_id = ?`).run(req.params.id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Book not found' });
+  const id = req.params.id;
+  const book = db.prepare(`SELECT book_id FROM Book WHERE book_id = ?`).get(id);
+  if (!book) return res.status(404).json({ error: 'Book not found' });
+
+  db.transaction(() => {
+    const copyIds = db.prepare(`SELECT book_copy_id FROM Book_Copy WHERE book_id = ?`).all(id).map(r => r.book_copy_id);
+    if (copyIds.length) {
+      const rentalIds = db.prepare(`SELECT rental_id FROM Rental WHERE book_copy_id IN (${copyIds.map(() => '?').join(',')})`)
+        .all(...copyIds).map(r => r.rental_id);
+      if (rentalIds.length) {
+        const returnIds = db.prepare(`SELECT book_return_id FROM Book_Return WHERE rental_id IN (${rentalIds.map(() => '?').join(',')})`)
+          .all(...rentalIds).map(r => r.book_return_id);
+        if (returnIds.length) {
+          db.prepare(`DELETE FROM Admonition WHERE book_return_id IN (${returnIds.map(() => '?').join(',')})`).run(...returnIds);
+          db.prepare(`DELETE FROM Book_Return WHERE book_return_id IN (${returnIds.map(() => '?').join(',')})`).run(...returnIds);
+        }
+        db.prepare(`DELETE FROM Rental WHERE rental_id IN (${rentalIds.map(() => '?').join(',')})`).run(...rentalIds);
+      }
+      db.prepare(`DELETE FROM Book_Copy WHERE book_id = ?`).run(id);
+    }
+    db.prepare(`DELETE FROM Book_Author WHERE book_id = ?`).run(id);
+    db.prepare(`DELETE FROM Book WHERE book_id = ?`).run(id);
+  })();
+
   res.status(204).send();
 });
 
@@ -480,8 +502,24 @@ app.put('/api/customers/:id', (req, res) => {
 });
 
 app.delete('/api/customers/:id', (req, res) => {
-  const result = db.prepare(`DELETE FROM Customer WHERE customer_id = ?`).run(req.params.id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Customer not found' });
+  const id = req.params.id;
+  const customer = db.prepare(`SELECT customer_id FROM Customer WHERE customer_id = ?`).get(id);
+  if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+  db.transaction(() => {
+    const rentalIds = db.prepare(`SELECT rental_id FROM Rental WHERE customer_id = ?`).all(id).map(r => r.rental_id);
+    if (rentalIds.length) {
+      const returnIds = db.prepare(`SELECT book_return_id FROM Book_Return WHERE rental_id IN (${rentalIds.map(() => '?').join(',')})`)
+        .all(...rentalIds).map(r => r.book_return_id);
+      if (returnIds.length) {
+        db.prepare(`DELETE FROM Admonition WHERE book_return_id IN (${returnIds.map(() => '?').join(',')})`).run(...returnIds);
+        db.prepare(`DELETE FROM Book_Return WHERE book_return_id IN (${returnIds.map(() => '?').join(',')})`).run(...returnIds);
+      }
+      db.prepare(`DELETE FROM Rental WHERE rental_id IN (${rentalIds.map(() => '?').join(',')})`).run(...rentalIds);
+    }
+    db.prepare(`DELETE FROM Customer WHERE customer_id = ?`).run(id);
+  })();
+
   res.status(204).send();
 });
 

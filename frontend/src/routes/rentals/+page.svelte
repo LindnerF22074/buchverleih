@@ -1,5 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { get } from 'svelte/store';
 	import { api } from '$lib/api.js';
 	import { addToast } from '$lib/toast.svelte.js';
 	import Modal from '$lib/components/Modal.svelte';
@@ -70,7 +72,17 @@
 		return copies.filter((c) => !activeRentalCopyIds.has(c.book_copy_id));
 	});
 
-	onMount(loadAll);
+	onMount(async () => {
+		const params = get(page).url.searchParams;
+		const filterParam = params.get('filter');
+		if (filterParam === 'overdue') filter = 'overdue';
+		await loadAll();
+		const rentalParam = params.get('rental');
+		if (rentalParam) {
+			const r = rentals.find((x) => String(x.rental_id) === rentalParam);
+			if (r) openDetail(r);
+		}
+	});
 
 	async function loadAll() {
 		loading = true;
@@ -349,6 +361,7 @@
 		</dl>
 		<div class="form-actions">
 			<button class="btn btn-secondary" onclick={() => (showDetail = false)}>Schließen</button>
+			<button class="btn btn-danger" onclick={() => { showDetail = false; deleteRental(detailRental); }}>Löschen</button>
 			{#if status !== 'returned'}
 				<button class="btn btn-success" onclick={() => { showDetail = false; openReturn(detailRental); }}>
 					Zurückgeben

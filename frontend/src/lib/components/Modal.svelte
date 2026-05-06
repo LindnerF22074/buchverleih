@@ -7,7 +7,7 @@
 	$effect(() => {
 		if (!dialog) return;
 		if (open) {
-			dialog.showModal();
+			dialog.show();
 		} else {
 			if (dialog.open) dialog.close();
 		}
@@ -17,21 +17,15 @@
 		open = false;
 		onclose?.();
 	}
-
-	/** @param {MouseEvent} e */
-	function handleBackdrop(e) {
-		if (e.target === dialog) handleClose();
-	}
 </script>
 
+{#if open}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="backdrop" onclick={handleClose} role="presentation"></div>
+{/if}
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<dialog
-	bind:this={dialog}
-	onclose={handleClose}
-	onclick={handleBackdrop}
-	class:wide
->
-	<div class="modal-content" onclick={(e) => e.stopPropagation()} role="presentation">
+<dialog bind:this={dialog} onclose={handleClose} class:wide>
+	<div class="modal-content" role="presentation">
 		<div class="modal-header">
 			<h2>{title}</h2>
 			<button class="close-btn" onclick={handleClose} aria-label="Schließen">×</button>
@@ -43,6 +37,14 @@
 </dialog>
 
 <style>
+	.backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(15, 23, 42, 0.55);
+		backdrop-filter: blur(2px);
+		z-index: 1000;
+	}
+
 	dialog {
 		border: none;
 		border-radius: 0.75rem;
@@ -54,15 +56,16 @@
 		box-shadow:
 			0 20px 60px rgba(0, 0, 0, 0.25),
 			0 0 0 1px rgba(0, 0, 0, 0.06);
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 1001;
+		margin: 0;
 	}
 
 	dialog.wide {
 		max-width: 760px;
-	}
-
-	dialog::backdrop {
-		background: rgba(15, 23, 42, 0.55);
-		backdrop-filter: blur(2px);
 	}
 
 	.modal-content {
