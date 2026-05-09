@@ -313,6 +313,11 @@ app.post('/api/books/:bookId/copies', (req, res) => {
 });
 
 app.delete('/api/book-copies/:id', (req, res) => {
+  const rentals = db.prepare(`
+    SELECT r.rental_id FROM Rental r
+    WHERE r.book_copy_id = ?
+  `).all(req.params.id);
+  if (rentals.length > 0) return res.status(409).json({ error: 'Exemplar hat bestehende Ausleihen und kann nicht gelöscht werden' });
   const result = db.prepare(`DELETE FROM Book_Copy WHERE book_copy_id = ?`).run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Book copy not found' });
   res.status(204).send();
@@ -708,13 +713,7 @@ app.get('/api/book-returns', (req, res) => {
 });
 
 app.post('/api/book-returns', (req, res) => {
-  const { return_date, rental_id, employee_id, rent_amount } = req.body;
-  if (!return_date || !rental_id) return res.status(400).json({ error: 'return_date and rental_id are required' });
-  const result = db.prepare(`
-    INSERT INTO Book_Return (return_date, rental_id, employee_id, rent_amount)
-    VALUES (?, ?, ?, ?)
-  `).run(return_date, rental_id, employee_id ?? null, rent_amount ?? null);
-  res.status(201).json({ book_return_id: result.lastInsertRowid, ...req.body });
+  res.status(405).json({ error: 'Bitte POST /api/rentals/:rentalId/return verwenden' });
 });
 
 // ─── Admonitions ──────────────────────────────────────────────────────────────
